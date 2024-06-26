@@ -25,6 +25,73 @@ db.init_app(app)
 def home():
     return ''
 
+@app.route('/scientists', methods=['GET', 'POST'])
+def scientists():
+    if request.method == 'GET':
+        scientists = [scientist.to_dict(rules=('-missions',)) for scientist in Scientist.query.all()]
+        return scientists, 200
+    else:
+        data = request.get_json()
+        try:
+            new_scientist = Scientist(
+                name = data['name'],
+                field_of_study = data['field_of_study']
+            )
+
+            db.session.add(new_scientist)
+            db.session.commit()
+
+            return new_scientist.to_dict(), 200
+        except ValueError:
+            return {"errors": ["validation errors"]}, 400
+
+
+@app.route('/scientists/<int:id>', methods=['GET', 'DELETE', 'PATCH'])
+def scientist_by_id(id):
+    scientist = Scientist.query.filter_by(id=id).first()
+    if scientist:
+        if request.method == 'GET':
+            return scientist.to_dict(), 200
+        elif request.method == 'DELETE':
+            db.session.delete(scientist)
+            return {}, 204
+        elif request.method == 'PATCH':
+            data = request.get_json()
+            try:
+                for attr in data:
+                    setattr(scientist, attr, data[attr])
+                
+                db.session.commit()
+
+                return scientist.to_dict(), 202
+            except ValueError:
+                return {"errors": ["validation errors"]}, 400
+    else:
+        return {"error": "Scientist not found"}, 404
+
+@app.route('/planets', methods=['GET'])
+def planets():
+    planets = [planet.to_dict(rules=('-missions',)) for planet in Planet.query.all()]
+    return planets, 200
+
+@app.route('/missions', methods=['POST'])
+def missions():
+    data = request.get_json()
+    try:
+        new_mission = Mission(
+            name = data["name"],
+            scientist_id = data["scientist_id"],
+            planet_id = data["planet_id"]
+        )
+
+        db.session.add(new_mission)
+        db.session.commit()
+
+        return new_mission.to_dict(), 201
+    except ValueError:
+        return {"errors": ["validation errors"]}, 400
+
+
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
